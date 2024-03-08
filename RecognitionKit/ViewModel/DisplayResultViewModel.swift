@@ -14,11 +14,6 @@ class DisplayResultViewModel:NSObject {
     private var objectDetectionHelper: ObjectDetectionHelper?
     private var cancellabe = Set<AnyCancellable>()
     private var deviceType:DeviceType = .undefined //裝置的類型
-    //    @Published var sysValue:String? //收縮壓的值
-    //    @Published var diaValue:String? //舒張壓的值
-    //    @Published var pulseValue:String? ///脈搏的值
-    //    @Published var bloodOxygen:String? ///血糖的值
-    //    @Published var temperatureValue:String? ///體溫的值
     @Published var errorMessage:String? ///errorMessage值
     @Published private (set) var dataList:[DetectResultItem] = [DetectResultItem]()
    
@@ -119,7 +114,6 @@ class DisplayResultViewModel:NSObject {
             // zh-Hant 是繁体中文
             request.recognitionLanguages = ["zh-Hans", "zh-Hant"]
             request.usesLanguageCorrection = true
-            request.revision = VNRecognizeTextRequestRevision3
             request.customWords = customWords
             do {
                 try handler.perform([request])

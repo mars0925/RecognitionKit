@@ -92,9 +92,6 @@ enum BloodSugarUnit {
 
 ///辨識結果
 public struct DetectResultItem {
-    
-    //標題
-//    let title:String
     //數據種類
     public let item:MeterData
     //值

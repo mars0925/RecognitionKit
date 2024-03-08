@@ -9,7 +9,6 @@ import UIKit
 import AVFoundation
 import Combine
 public class CustomCameraViewController: UIViewController{
-    
     @IBOutlet weak var noticeLabel: UILabel!
     @IBOutlet weak var previewLayer: PreviewView! //鏡頭預覽
     @IBOutlet weak var shutterButton: UIButton! //拍照
@@ -20,8 +19,6 @@ public class CustomCameraViewController: UIViewController{
     
     public override func viewDidLoad() {
         super.viewDidLoad()
-//        NotificationCenter.default.addObserver(self, selector: #selector(handleRecognitionResultNotification(_:)), name: NSNotification.Name("ResultFromRecognitionKit"), object: nil)
-
         cameraFeedManager.delegate = self
     }
     
@@ -30,17 +27,6 @@ public class CustomCameraViewController: UIViewController{
         cameraFeedManager.didTapTakePhoto()
         flashOnce(button: shutterButton, duration: 0.1)
     }
-    
-//    //接收到傳送辨識訊息的，將照相視窗關閉
-//    @objc func handleRecognitionResultNotification(_ notification: Notification) {
-//        print("拍照 ViewController")
-//        dismiss(animated: false)
-//
-//    }
-    
-//    deinit {
-//        NotificationCenter.default.removeObserver(self)
-//    }
 
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)

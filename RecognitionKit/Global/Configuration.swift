@@ -7,18 +7,10 @@
 
 import Foundation
 
-
-//modelFileInfo: FileInfo("efficientdet_lite4_V3_image1028_model", "tflite"),
-//threadCount: 1,
-//scoreThreshold: 0.5,
-//maxResults: 10
-
-
 let threadCount:Int = 1
 let scoreThreshold:Float = 0.3
 let maxResults:Int = 15
 let tfliteName:String = "efficientdet_lite4_V3_image1028_model"
-
 
 /**
  * ViewController的storyboard ID

@@ -49,7 +49,7 @@ func cropImage(originalImage: UIImage, toRect rect: CGRect) -> UIImage? {
     // 計算裁切區域的原點，使得裁切的圖像部分居中
     let x = (originalImage.size.width - cropSize.width) / 2
     let y = (originalImage.size.height - cropSize.height) / 2
-    print("原點：\(x),y:\(y)")
+
     let image = renderer.image { _ in
         // 計算要繪製的原圖像的區域和位置
         originalImage.draw(at: CGPoint(x: -rect.origin.x, y: -rect.origin.y))
