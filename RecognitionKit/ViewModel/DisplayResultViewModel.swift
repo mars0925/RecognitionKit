@@ -16,7 +16,7 @@ class DisplayResultViewModel:NSObject {
     private var deviceType:DeviceType = .undefined //裝置的類型
     @Published var errorMessage:String? ///errorMessage值
     @Published private (set) var dataList:[DetectResultItem] = [DetectResultItem]()
-   
+    
     
     override init() {
         super.init()
@@ -60,8 +60,14 @@ class DisplayResultViewModel:NSObject {
                     let text = classList[index]
                     let confidence = detection.categories.first?.score ?? 0
                     let boundingBox = detection.boundingBox
-                    let data = DetectImageResult(boundingBox: boundingBox, text: text, score: String(confidence), source: .NUMBER)
-                    
+                    var data:DetectImageResult
+                    ///index > 9 為  "mgdl", "mmol","°C" 等標籤 非數字
+                    if index > 9{
+                        data = DetectImageResult(boundingBox: boundingBox, text: text, score: String(confidence), source: .MARK)
+                    }else {
+                        data = DetectImageResult(boundingBox: boundingBox, text: text, score: String(confidence), source: .NUMBER)
+                    }
+
                     dataArray.append(data)
                 }
                 
@@ -139,7 +145,7 @@ class DisplayResultViewModel:NSObject {
      @return LinkedHashMap<Int, List<DetectObject>> key 代表第幾列 ,List 存放此列的數字
      */
     func parseByRow(resultList: [DetectImageResult]) -> [Int: [DetectImageResult]] {
-        // Average height
+        // 平均高度
         let averageHeight = resultList.filter {
             $0.boundingBox.height >= 10
         }.map {
@@ -147,26 +153,41 @@ class DisplayResultViewModel:NSObject {
         }.reduce(0, +) / Double(resultList.count)
         
         var rowMap = [Int: [DetectImageResult]]()
-        var numberList = [(Int, DetectImageResult)]() // (Row, Detected Number)
+        var numberList = [(Int, DetectImageResult)]() // (行號, 檢測結果)
         let sorted = resultList.sorted(by: {
-            $0.boundingBox.midY < $1.boundingBox.midY
+//            $0.boundingBox.midY < $1.boundingBox.midY
+            $0.boundingBox.maxY < $1.boundingBox.maxY
         })
         
-        var i = 0
-        var firstItemY: CGFloat = 0.0 // The Y of the first item in a row
-        let h = averageHeight / 2
+        var i = 0 // 初始化行號變數
+        var firstItemY: CGFloat = 0.0 // 用來記錄每一行的第一個元素的 Y 軸位置
+        var firstItemHeight = sorted[0].boundingBox.height
+        let h = averageHeight / 2 // 平均高度的一半，用於行距的閾值
+        
         for each in sorted {
-            let d = abs(firstItemY - each.boundingBox.midY)
-            if d > h {
+            let d = abs(firstItemY - each.boundingBox.midY) // 計算 firstItemY 和當前元素 boundingBox.midY 之間的差異 d
+//            let diffHeight = abs(firstItemHeight - each.boundingBox.height) // 計算 firstItemHeight 和當前元素高度之間的差異
+            
+            let max = max(firstItemHeight, each.boundingBox.height)
+            let min = min(firstItemHeight, each.boundingBox.height)
+            let diffHeight = max * 0.5 > min // 相差超過一半
+
+            
+            // 如果差異 d 大於 h 或者高度差異超過 40，則表示進入新的一行，將 i 自增並更新 firstItemY
+            if d > h || diffHeight {
                 i += 1
                 firstItemY = each.boundingBox.midY
+                firstItemHeight = each.boundingBox.height
             }
             
             numberList.append((i, each))
         }
         
+        // 使用 Set 獲取所有行號並對其進行遍歷
         let rowSet = Set(numberList.map { $0.0 })
         
+        // 對於每一行號，使用 filter 從 numberList 中取出該行的結果，並按 boundingBox.midX 進行排序
+        // 將排序後的結果存儲到 rowMap
         for row in rowSet {
             let datas = numberList.filter { $0.0 == row }.map { $0.1 }
             
@@ -179,7 +200,7 @@ class DisplayResultViewModel:NSObject {
             }
         }
         
-        // Debugging or verifying the result
+        // 調試或驗證結果
         rowMap.forEach { (i, list) in
             var result = ""
             list.forEach {
@@ -190,7 +211,9 @@ class DisplayResultViewModel:NSObject {
         
         return rowMap
     }
+
     
+    /// 判斷什麼裝置
     func checkDevice(resultList: [DetectImageResult], numberByRow: [Int: [DetectImageResult]]) {
         let mapList = resultList.map { $0.text }
         
@@ -235,17 +258,24 @@ class DisplayResultViewModel:NSObject {
                 break outerLoop
             }
         }
+        
+        //檢查是否為溫度計
+        for i in celsiusText {
+            if each.localizedCaseInsensitiveContains(i) {
+                deviceType = .thermometer
+                break outerLoop
+            }
+        }
     }
+        
+        // 三排字以上，則判斷為血壓計
+        if numberByRow.keys.count >= 3 && deviceType == .undefined {
+            deviceType = .bpm
+        }
         
         //前面都沒有符合的話 設定為溫度計
         if deviceType == .undefined {
             deviceType = .thermometer
-        }
-        
-        // 三排字以上，則判斷為血壓計
-        if numberByRow.keys.count >= 3 && deviceType == .thermometer {
-            deviceType = .bpm
-            
         }
         
         // 使用 deviceType 做後續處理
@@ -259,6 +289,10 @@ class DisplayResultViewModel:NSObject {
         case .bpm:
             let labelRect = locationLabel(resultList: resultList) //設備標籤的位置
             var numberAreaList = parseByColumn(map: numberByRow)
+            
+            numberAreaList.forEach { areaResult in
+                print("血壓計：\(areaResult.text) size:\(areaResult.boundingBox.size) maxY:\(areaResult.boundingBox.maxY)")
+            }
             
             //設定收縮壓
             if let sys = labelRect.sys {
@@ -286,7 +320,8 @@ class DisplayResultViewModel:NSObject {
                 let ans:String = checkValue(rect: pulse, data: &numberAreaList)
                 dataList.append(DetectResultItem(item: .pulse, value: ans, unit: .pulse_unit))
             }else {
-                dataList.append(DetectResultItem(item: .pulse, value: setDiaNumber(numberAreaList: numberAreaList), unit: .pulse_unit))
+                dataList.append(DetectResultItem(item: .pulse, value: setPulse(numberAreaList: numberAreaList), unit: .pulse_unit))
+                
             }
             
             break
@@ -338,26 +373,24 @@ class DisplayResultViewModel:NSObject {
                 }
             }
             
-            dataList.append(DetectResultItem(item: .temp, value: result, unit: .temperature_scale))
+            dataList.append(DetectResultItem(item: .temp, value: result, unit: .temperature_scale_C))
             
             break
         case .bloodSugarMeter:
             
-            let sevenSegmentNumList = resultList.filter { $0.source == .NUMBER}
-            //筛选出高度大於140 的元素，并按照它们的高度降序排序
-            let sortList = sevenSegmentNumList
-                .filter { $0.boundingBox.height > 140 }
-                .sorted { $0.boundingBox.height > $1.boundingBox.height}
+            let values = numberByRow.values
+            let filterList = values.filter { resultList in
+                resultList.count > 1
+            }
+            guard filterList.isNotEmpty else {return}
             
-            guard let firstHeightRect = sortList.first else {return}
+            //高度最大的
+            let maxNumList = filterList.max { previousList, nextList in
+                guard let previous = previousList.first , let next = nextList.first else {return false}
+                
+                return previous.boundingBox.height <  next.boundingBox.height
+            }
             
-            let firstHeight = firstHeightRect.boundingBox.height
-            //从已排序的列表中筛选出高度与第一个元素高度相差不超过 160 的元素，并按照它们的中心点横坐标排序。
-            let numberList = sortList.filter { abs(firstHeight - $0.boundingBox.height) < 160 }
-                .sorted(by: { $0.boundingBox.centerX < $1.boundingBox.centerX })
-            
-            
-            //将 resultList 中每个元素的文本内容提取出来，组成一个列表。
             let labelList = resultList.map { $0.text }
             
             var unitType: BloodSugarUnit = .undefined
@@ -375,13 +408,13 @@ class DisplayResultViewModel:NSObject {
             var result = ""
             switch unitType {
             case .mgDL:
-                numberList.forEach { each in
+                maxNumList?.forEach { each in
                     result += each.text
                 }
                 dataList.append(DetectResultItem(item: .bloodSugar, value: result, unit: .mg_dl))
             case .mmolL:
                 var numText = ""
-                numberList.forEach { each in
+                maxNumList?.forEach { each in
                     numText += each.text
                 }
                 let subSequence = String(numText.dropLast())
@@ -390,7 +423,7 @@ class DisplayResultViewModel:NSObject {
                 dataList.append(DetectResultItem(item: .bloodSugar, value: result, unit: .mmolL))
             case .undefined:
                 var numText = ""
-                numberList.forEach { each in
+                maxNumList?.forEach { each in
                     numText += each.text
                 }
                 if numText.count == 2 {
@@ -454,7 +487,7 @@ class DisplayResultViewModel:NSObject {
                             }
                         }
                     }
-
+                    
                     //比對map標籤
                     for map in mapLabelList {
                         if each.text.count <= 4 {
@@ -474,7 +507,7 @@ class DisplayResultViewModel:NSObject {
                             }
                         }
                     }
-
+                    
                     //比對mmHg單位
                     if each.text.lowercased().contains("mm") {
                         bpmInterface.mmHgList.append(each.boundingBox)
@@ -725,14 +758,13 @@ class DisplayResultViewModel:NSObject {
         let resultAns = numberAreaList.filter { numBerArea in
             let text = Int(numBerArea.text) ?? 0
             return text >= 39 && text <= 270
-        }
-            .max { previous,next in
-                
+        }.max { previous,next in
                 let previousNum = Int(previous.text) ?? 0
                 let nextNum = Int(next.text) ?? 0
-                
                 return previousNum < nextNum
-            }
+        }
+        
+        print(resultAns)
         
         return resultAns?.text ?? ""
         
@@ -858,17 +890,21 @@ class DisplayResultViewModel:NSObject {
     func getAngle(image:UIImage,dataList:[DetectImageResult])->CGFloat{
         guard dataList.isNotEmpty else {return 0}
         
-        var newList = dataList.sorted {
+        let NUMBERList = dataList.filter {$0.source == .NUMBER}
+        
+        //以y排序
+        var newList = NUMBERList.sorted {
             $0.boundingBox.origin.y < $1.boundingBox.origin.y
         }
         
         let topBox = newList[0]
         newList.remove(at: 0)
-        
+        //找尋跟topBox相同大小的字
         let filterList = newList.filter {
             abs($0.boundingBox.height - topBox.boundingBox.height) < 40
         }
         
+        //距離最近的
         let secondaryBox = filterList.min {
             // 取得兩個矩形的原點
             let origin0 = $0.boundingBox.origin
@@ -901,6 +937,6 @@ class DisplayResultViewModel:NSObject {
         let distance = sqrt(pow(deltaX, 2) + pow(deltaY, 2))
         return distance
     }
-
+    
     
 }

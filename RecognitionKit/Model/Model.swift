@@ -44,9 +44,13 @@ struct NumBerArea{
 }
 
 
-/**辨識模型類別*/
+/**辨識模型類別
+ TEXT:ios文字辨識的結果
+ NUMBER：自以訓練的模型辨識出的七斷線數字
+ MARK：自以訓練的模型辨識出的單位，如："mgdl", "mmol","°C"
+ */
 enum ModelType {
-    case TEXT,NUMBER
+    case TEXT,NUMBER,MARK
 }
 
 
@@ -102,12 +106,12 @@ public struct DetectResultItem {
 
 
 public enum UnitType:CaseIterable {
-    case temperature_scale,kg,mmHg,mg_dl,mmolL,time_min,pulse_unit,undefined
+    case temperature_scale_C,kg,mmHg,mg_dl,mmolL,time_min,pulse_unit,undefined
     
     /// 單位的顯示名稱。
     public var displayName:String {
         switch self {
-        case .temperature_scale:
+        case .temperature_scale_C:
             "°C"
         case .kg:
             "KG"
@@ -141,7 +145,7 @@ public enum UnitType:CaseIterable {
     ///伺服器的編碼
     public var code:Int {
         switch self {
-        case .temperature_scale:
+        case .temperature_scale_C:
             1
         case .kg:
             1

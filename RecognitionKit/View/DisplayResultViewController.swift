@@ -65,6 +65,10 @@ public class DisplayResultViewController: UIViewController {
                         let sevenSegmentNumList = dectectResult.filter { detectImageResult in
                             detectImageResult.source == ModelType.NUMBER
                         }
+                        //畫框的列表
+                        let drawRectList = dectectResult.filter { detectImageResult in
+                            detectImageResult.source == ModelType.NUMBER || detectImageResult.source == ModelType.MARK
+                        }
                         
                         let noOverlapNumList = vm.removeOverlapBoundingBoxes(boxes: sevenSegmentNumList) // 移除重疊過高的BoundingBoxes
                         
@@ -75,7 +79,7 @@ public class DisplayResultViewController: UIViewController {
                         
                         
                         //畫出結果
-                        guard let drawImage = drawRectanglesAndTextOnImage(image: rotateImage,detections: sevenSegmentNumList) else {return}
+                        guard let drawImage = drawRectanglesAndTextOnImage(image: rotateImage,detections: drawRectList) else {return}
                         pictureImageView.image = drawImage
                     }
                     .store(in: &cancellabe)
