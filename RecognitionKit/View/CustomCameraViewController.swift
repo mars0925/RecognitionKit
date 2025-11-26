@@ -38,7 +38,8 @@ public class CustomCameraViewController: UIViewController{
         targetRect.layer.borderWidth = 3
         targetRect.layer.borderColor = UIColor.red.cgColor
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [unowned self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
             self.shutterButton.isHidden = false
             self.targetRect.isHidden = false
             self.noticeLabel.isHidden = false
